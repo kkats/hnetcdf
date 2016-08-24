@@ -19,7 +19,7 @@ class NcStore s where
   type NcStoreExtraCon s a :: Constraint
   type NcStoreExtraCon s a = ()
   toForeignPtr :: (Storable e, NcStoreExtraCon s e) =>
-                  s e -> ForeignPtr e
+                  s e -> (ForeignPtr e, Int)
   fromForeignPtr :: (Storable e, NcStoreExtraCon s e) =>
                     ForeignPtr e -> [Int] -> s e
   smap :: (Storable a, Storable b, NcStoreExtraCon s a, NcStoreExtraCon s b) =>

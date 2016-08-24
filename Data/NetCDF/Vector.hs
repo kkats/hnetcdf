@@ -8,6 +8,6 @@ import Data.NetCDF.Store
 import qualified Data.Vector.Storable as SV
 
 instance NcStore SV.Vector where
-  toForeignPtr = fst . SV.unsafeToForeignPtr0
+  toForeignPtr = SV.unsafeToForeignPtr0
   fromForeignPtr p s = SV.unsafeFromForeignPtr0 p (Prelude.product s)
   smap = SV.map

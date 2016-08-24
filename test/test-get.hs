@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 import Test.Framework (defaultMain, testGroup, Test)
 import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test, assert)
@@ -8,7 +9,7 @@ import qualified Data.Array.Repa.Eval as RE
 import Data.Array.Repa.Repr.ForeignPtr (F)
 import Control.Error
 import Control.Monad
-import Numeric.Container as C
+import Numeric.LinearAlgebra as C
 import Foreign.C
 
 import Data.NetCDF
@@ -22,13 +23,13 @@ main = defaultMain tests
 infile :: FilePath
 infile = "test/tst-raw-get-put.nc"
 
-fwit :: CFloat
+fwit :: Float
 fwit = undefined
 
 iwit :: CInt
 iwit = undefined
 
-swit :: CShort
+swit :: CInt
 swit = undefined
 
 tests :: [Test]
@@ -165,7 +166,7 @@ getVarRepa f v _ = do
             (and $ zipWith (==) tstvals truevals)
   void $ closeFile nc
 
-getVarHMV :: forall a. (Eq a, Num a, Show a, NcStorable a, Element a)
+getVarHMV :: forall a. (Eq a, Num a, Show a, NcStorable a, Element a, Container Vector a)
           => FilePath -> String -> a -> Assertion
 getVarHMV f v _ = do
   enc <- openFile f
@@ -183,7 +184,7 @@ getVarHMV f v _ = do
                           ix <- [1..nx], iy <- [1..ny], iz <- [1..nz]]
               idxs = [(iz - 1) * ny * nx + (iy - 1) * nx + (ix - 1) |
                       ix <- [1..nx], iy <- [1..ny], iz <- [1..nz]]
-              tstvals = [val C.@> i | i <- idxs]
+              tstvals = [val `C.atIndex` i | i <- idxs]
           assertBool ("value error: " ++ show tstvals ++
                       " instead of " ++ show truevals)
             (and $ zipWith (==) tstvals truevals)
@@ -291,7 +292,7 @@ getVarARepa f v _ = do
               assertBool ("3: value error: " ++ show tstvals ++
                           " instead of " ++ show truevals) (tstvals == truevals)
 
-getVarAHMV :: forall a. (Num a, Show a, Eq a, NcStorable a, Element a)
+getVarAHMV :: forall a. (Num a, Show a, Eq a, NcStorable a, Element a, Container Vector a)
            => FilePath -> String -> a -> Assertion
 getVarAHMV f v _ = do
   enc <- openFile f
@@ -309,7 +310,7 @@ getVarAHMV f v _ = do
           case eval of
             Left e -> assertBool ("read error: " ++ show e) False
             Right vals -> do
-              let truevals = H.HVector $ C.buildVector (fromIntegral nz)
+              let truevals = H.HVector $ buildVector (fromIntegral nz)
                              (\iz -> fromIntegral $ ix + 10 * iy + 100 * (iz+1))
               assertBool ("1: value error: " ++ show vals ++
                           " instead of " ++ show truevals) (vals == truevals)
@@ -321,7 +322,7 @@ getVarAHMV f v _ = do
           case eval of
             Left e -> assertBool ("read error: " ++ show e) False
             Right vals -> do
-              let truevals = H.HVector $ C.buildVector (fromIntegral ny)
+              let truevals = H.HVector $ buildVector (fromIntegral ny)
                              (\iy -> fromIntegral $ ix + 10 * (iy+1) + 100 * iz)
               assertBool ("2: value error: " ++ show vals ++
                           " instead of " ++ show truevals) (vals == truevals)
@@ -333,7 +334,7 @@ getVarAHMV f v _ = do
           case eval of
             Left e -> assertBool ("read error: " ++ show e) False
             Right vals -> do
-              let truevals = H.HVector $ C.buildVector (fromIntegral nx)
+              let truevals = H.HVector $ buildVector (fromIntegral nx)
                              (\ix -> fromIntegral $ (ix+1) + 10 * iy + 100 * iz)
               assertBool ("3: value error: " ++ show vals ++
                           " instead of " ++ show truevals) (vals == truevals)
@@ -466,7 +467,7 @@ getVarSRepa f v _ = do
                             " instead of " ++ show truevals)
                   (tstvals == truevals)
 
-getVarSHMV :: forall a. (Num a, Show a, Eq a, NcStorable a, Element a)
+getVarSHMV :: forall a. (Num a, Show a, Eq a, NcStorable a, Element a, Container Vector a)
           => FilePath -> String -> a -> Assertion
 getVarSHMV f v _ = do
   enc <- openFile f
@@ -486,7 +487,7 @@ getVarSHMV f v _ = do
             case eval of
               Left e -> assertBool ("read error: " ++ show e) False
               Right vals -> do
-                let truevals = H.HVector $ C.buildVector
+                let truevals = H.HVector $ buildVector
                                (fromIntegral $ (nz + s - 1) `div` s)
                                (\iz -> fromIntegral $
                                        ix + 10 * iy + 100 * (iz * s + 1))
@@ -502,7 +503,7 @@ getVarSHMV f v _ = do
             case eval of
               Left e -> assertBool ("read error: " ++ show e) False
               Right vals -> do
-                let truevals = H.HVector $ C.buildVector
+                let truevals = H.HVector $ buildVector
                                (fromIntegral $ (ny + s - 1) `div` s)
                                (\iy -> fromIntegral $
                                        ix + 10 * (iy * s + 1) + 100 * iz)
@@ -518,9 +519,15 @@ getVarSHMV f v _ = do
             case eval of
               Left e -> assertBool ("read error: " ++ show e) False
               Right vals -> do
-                let truevals = H.HVector $ C.buildVector
+                let truevals = H.HVector $ buildVector
                                (fromIntegral $ (nx + s - 1) `div` s)
                                (\ix -> fromIntegral $
                                        (ix * s + 1) + 10 * iy + 100 * iz)
                 assertBool ("3: value error: " ++ show vals ++
                             " instead of " ++ show truevals) (vals == truevals)
+
+---
+---
+---
+buildVector :: (SV.Storable a) => Int -> (Int -> a) -> Vector a
+buildVector len f = C.fromList $ map f [0 .. (len-1)]

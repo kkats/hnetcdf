@@ -44,8 +44,8 @@ put_var :: (NcStorable a, NcStore s, NcStoreExtraCon s a) =>
 put_var nc var v = do
   let ncid = fromIntegral nc
       varid = fromIntegral var
-      is = toForeignPtr v
-  withForeignPtr is $ \isp -> fromIntegral <$> ffi_put_var ncid varid isp
+      (is,n) = toForeignPtr v
+  withForeignPtr is $ \isp -> fromIntegral <$> ffi_put_var ncid varid isp n
 
 get_var :: (NcStorable a, NcStore s, NcStoreExtraCon s a) =>
            Int -> Int -> [Int] -> IO (Int, s a)
@@ -54,7 +54,7 @@ get_var nc var sz = do
       varid = fromIntegral var
   is <- mallocForeignPtrArray (product sz)
   withForeignPtr is $ \isp -> do
-    res <- ffi_get_var ncid varid isp
+    res <- ffi_get_var ncid varid isp (product sz)
     return (fromIntegral res, fromForeignPtr is sz)
 
 put_vara :: (NcStorable a, NcStore s, NcStoreExtraCon s a) =>
@@ -62,11 +62,11 @@ put_vara :: (NcStorable a, NcStore s, NcStoreExtraCon s a) =>
 put_vara nc var start count v = do
   let ncid = fromIntegral nc
       varid = fromIntegral var
-      is = toForeignPtr v
+      (is,n) = toForeignPtr v
   withForeignPtr is $ \isp ->
     withSizeArray start $ \startp ->
       withSizeArray count $ \countp -> do
-        res <- ffi_put_vara ncid varid startp countp isp
+        res <- ffi_put_vara ncid varid startp countp isp n
         return $ fromIntegral res
 
 get_vara :: (NcStorable a, NcStore s, NcStoreExtraCon s a)
@@ -78,7 +78,7 @@ get_vara nc var start count = do
   withForeignPtr is $ \isp ->
     withSizeArray start $ \s ->
       withSizeArray count $ \c -> do
-        res <- ffi_get_vara ncid varid s c isp
+        res <- ffi_get_vara ncid varid s c isp (product count)
         return (fromIntegral res, fromForeignPtr is (filter (>1) count))
 
 put_vars :: (NcStorable a, NcStore s, NcStoreExtraCon s a) =>
@@ -86,12 +86,12 @@ put_vars :: (NcStorable a, NcStore s, NcStoreExtraCon s a) =>
 put_vars nc var start count stride v = do
   let ncid = fromIntegral nc
       varid = fromIntegral var
-      is = toForeignPtr v
+      (is,n) = toForeignPtr v
   withForeignPtr is $ \isp ->
     withSizeArray start $ \startp ->
       withSizeArray count $ \countp -> do
         withSizeArray stride $ \stridep -> do
-          res <- ffi_put_vars ncid varid startp countp stridep isp
+          res <- ffi_put_vars ncid varid startp countp stridep isp n
           return $ fromIntegral res
 
 get_vars :: (NcStorable a, NcStore s, NcStoreExtraCon s a)
@@ -104,10 +104,10 @@ get_vars nc var start count stride = do
     withSizeArray start $ \s ->
       withSizeArray count $ \c -> do
         withSizeArray stride $ \str -> do
-          res <- ffi_get_vars ncid varid s c str isp
+          res <- ffi_get_vars ncid varid s c str isp (product count)
           return (fromIntegral res, fromForeignPtr is (filter (>1) count))
 
 -- | Helper function for dealing with size (start, count, stride)
 -- arrays.
-withSizeArray :: (Storable a, Integral a) => [a] -> (Ptr CULong -> IO b) -> IO b
+withSizeArray :: (Integral a) => [a] -> (Ptr CULong -> IO b) -> IO b
 withSizeArray = withArray . liftM fromIntegral
