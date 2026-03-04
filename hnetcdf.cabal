@@ -28,10 +28,10 @@ source-repository head
 library
     build-depends:
         base           >= 4.3     && <5,
-        containers     >= 0.5.0.0 && <0.7,
-        filepath       >= 1.4     && <1.5,
+        containers     >= 0.5.0.0 && <0.8,
+        filepath       >= 1.4     && <1.6,
         repa           >= 3.4     && <3.5,
-        transformers   >= 0.2     && <0.6,
+        transformers   >= 0.2     && <0.7,
         vector         >= 0.12    && <0.14
     exposed-modules:
         Data.NetCDF
